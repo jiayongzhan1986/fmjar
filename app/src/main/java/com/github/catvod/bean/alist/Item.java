@@ -99,35 +99,32 @@ public class Item {
     }
 
     public boolean ignore(boolean isNew) {
+        if (getName().endsWith(".ts")) return false;
         if (isNew) return getType() == 0 || getType() == 4;
         return getType() == 0 || getType() == 2 || getType() == 5;
     }
 
     public String getExt() {
-        return getName().substring(getName().lastIndexOf(".") + 1);
+        return Utils.getExt(getName());
     }
 
     public String getVodId(String id) {
         return id + getPath() + "/" + getName();
     }
 
-    public String getPic() {
-        return getThumb().isEmpty() && isFolder() ? "http://img1.3png.com/281e284a670865a71d91515866552b5f172b.png" : getThumb();
+    public String getPic(String pic) {
+        return getThumb().isEmpty() && isFolder() ? pic : getThumb();
     }
 
     public String getRemark() {
-        return Utils.getSize(getSize()) + (isFolder() ? " 文件夹" : "");
+        return Utils.getSize(getSize());
     }
 
-    public String getVodTag() {
-        return isFolder() ? "folder" : "file";
+    public Vod getVod(String id, String pic) {
+        return new Vod(getVodId(id), getName(), getPic(pic), getRemark(), isFolder());
     }
 
-    public Vod getVod(String id) {
-        return new Vod(getVodId(id), getName(), getPic(), getRemark(), getVodTag());
-    }
-
-    public Vod getVod(Drive drive) {
-        return new Vod(getVodId(drive.getName()), getName(), getPic(), drive.getName(), getVodTag());
+    public Vod getVod(Drive drive, String pic) {
+        return new Vod(getVodId(drive.getName()), getName(), getPic(pic), drive.getName(), isFolder());
     }
 }

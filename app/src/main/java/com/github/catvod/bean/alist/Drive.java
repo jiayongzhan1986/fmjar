@@ -1,9 +1,11 @@
 package com.github.catvod.bean.alist;
 
+import android.net.Uri;
 import android.text.TextUtils;
 
 import com.github.catvod.bean.Class;
 import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Image;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
@@ -16,6 +18,8 @@ public class Drive {
 
     @SerializedName("drives")
     private List<Drive> drives;
+    @SerializedName("vodPic")
+    private String vodPic;
     @SerializedName("name")
     private String name;
     @SerializedName("server")
@@ -24,6 +28,8 @@ public class Drive {
     private String password;
     @SerializedName("version")
     private int version;
+    @SerializedName("path")
+    private String path;
 
     public static Drive objectFrom(String str) {
         return new Gson().fromJson(str, Drive.class);
@@ -35,6 +41,10 @@ public class Drive {
 
     public Drive(String name) {
         this.name = name;
+    }
+
+    public String getVodPic() {
+        return TextUtils.isEmpty(vodPic) ? Image.FOLDER : vodPic;
     }
 
     public String getName() {
@@ -57,6 +67,14 @@ public class Drive {
         this.version = version;
     }
 
+    public String getPath() {
+        return TextUtils.isEmpty(path) ? "" : path;
+    }
+
+    public void setPath(String path) {
+        this.path = TextUtils.isEmpty(path) ? "" : path;
+    }
+
     public boolean isNew() {
         return getVersion() == 3;
     }
@@ -65,24 +83,29 @@ public class Drive {
         return new Class(getName(), getName(), "1");
     }
 
+    public String getHost() {
+        return getServer().replace(getPath(), "");
+    }
+
     public String settingsApi() {
-        return getServer() + "/api/public/settings";
+        return getHost() + "/api/public/settings";
     }
 
     public String listApi() {
-        return getServer() + (isNew() ? "/api/fs/list" : "/api/public/path");
+        return getHost() + (isNew() ? "/api/fs/list" : "/api/public/path");
     }
 
     public String getApi() {
-        return getServer() + (isNew() ? "/api/fs/get" : "/api/public/path");
+        return getHost() + (isNew() ? "/api/fs/get" : "/api/public/path");
     }
 
     public String searchApi() {
-        return getServer() + (isNew() ? "/api/fs/search" : "/api/public/search");
+        return getHost() + (isNew() ? "/api/fs/search" : "/api/public/search");
     }
 
     public Drive check() {
-        if (getVersion() == 0) setVersion(OkHttp.string(settingsApi()).contains("v2.") ? 2 : 3);
+        if (path == null) setPath(Uri.parse(getServer()).getPath());
+        if (version == 0) setVersion(OkHttp.string(settingsApi()).contains("v2.") ? 2 : 3);
         return this;
     }
 

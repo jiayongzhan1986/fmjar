@@ -14,7 +14,6 @@ import com.github.catvod.bean.alist.Sorter;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Utils;
-import com.github.catvod.utils.Trans;
 
 import org.json.JSONObject;
 
@@ -30,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 public class AList extends Spider {
 
     private List<Drive> drives;
+    private String vodPic;
     private String ext;
 
     private List<Filter> getFilter() {
@@ -42,7 +42,9 @@ public class AList extends Spider {
     private void fetchRule() {
         if (drives != null && !drives.isEmpty()) return;
         if (ext.startsWith("http")) ext = OkHttp.string(ext);
-        drives = Drive.objectFrom(ext).getDrives();
+        Drive drive = Drive.objectFrom(ext);
+        drives = drive.getDrives();
+        vodPic = drive.getVodPic();
     }
 
     private Drive getDrive(String name) {
@@ -84,8 +86,8 @@ public class AList extends Spider {
             Sorter.sort(type, order, folders);
             Sorter.sort(type, order, files);
         }
-        for (Item item : folders) list.add(item.getVod(tid));
-        for (Item item : files) list.add(item.getVod(tid));
+        for (Item item : folders) list.add(item.getVod(tid, vodPic));
+        for (Item item : files) list.add(item.getVod(tid, vodPic));
         return Result.get().vod(list).page().string();
     }
 
@@ -102,15 +104,15 @@ public class AList extends Spider {
         List<String> playUrls = new ArrayList<>();
         for (Item item : parents) {
             if (item.isMedia(drive.isNew())) {
-                playUrls.add(Trans.get(item.getName()) + "$" + item.getVodId(path) + findSubs(path, parents));
+                playUrls.add(item.getName() + "$" + item.getVodId(path) + findSubs(path, parents));
             }
         }
         Vod vod = new Vod();
         vod.setVodId(id);
         vod.setVodName(name);
+        vod.setVodPic(vodPic);
         vod.setVodPlayFrom(key);
         vod.setVodPlayUrl(TextUtils.join("#", playUrls));
-        vod.setVodPic("http://img1.3png.com/281e284a670865a71d91515866552b5f172b.png");
         return Result.string(vod);
     }
 
@@ -136,9 +138,9 @@ public class AList extends Spider {
             String path = id.contains("/") ? id.substring(id.indexOf("/")) : "";
             Drive drive = getDrive(key);
             JSONObject params = new JSONObject();
-            params.put("path", path);
             params.put("password", drive.getPassword());
-            String response = OkHttp.postJson(drive.getApi(), params.toString());
+            params.put("path", path.startsWith(drive.getPath()) ? path : drive.getPath() + path);
+            String response = OkHttp.postJson(drive.getApi(), params.toString()).getBody();
             return Item.objectFrom(getDetailJson(drive.isNew(), response));
         } catch (Exception e) {
             return new Item();
@@ -151,9 +153,9 @@ public class AList extends Spider {
             String path = id.contains("/") ? id.substring(id.indexOf("/")) : "";
             Drive drive = getDrive(key);
             JSONObject params = new JSONObject();
-            params.put("path", path);
             params.put("password", drive.getPassword());
-            String response = OkHttp.postJson(drive.listApi(), params.toString());
+            params.put("path", path.startsWith(drive.getPath()) ? path : drive.getPath() + path);
+            String response = OkHttp.postJson(drive.listApi(), params.toString()).getBody();
             List<Item> items = Item.arrayFrom(getListJson(drive.isNew(), response));
             Iterator<Item> iterator = items.iterator();
             if (filter) while (iterator.hasNext()) if (iterator.next().ignore(drive.isNew())) iterator.remove();
@@ -165,9 +167,9 @@ public class AList extends Spider {
 
     private void search(CountDownLatch cd, List<Vod> list, Drive drive, String keyword) {
         try {
-            String response = OkHttp.postJson(drive.searchApi(), drive.params(keyword));
+            String response = OkHttp.postJson(drive.searchApi(), drive.params(keyword)).getBody();
             List<Item> items = Item.arrayFrom(getSearchJson(drive.isNew(), response));
-            for (Item item : items) if (!item.ignore(drive.isNew())) list.add(item.getVod(drive));
+            for (Item item : items) if (!item.ignore(drive.isNew())) list.add(item.getVod(drive, vodPic));
         } catch (Exception ignored) {
         } finally {
             cd.countDown();
