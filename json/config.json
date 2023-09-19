@@ -3,8 +3,8 @@
   "wallpaper": "http://饭太硬.top/深色壁纸/api.php",
   "sites": [
     {
-      "key": "影視",
-      "name": "影視",
+      "key": "yingshi",
+      "name": "yingshi",
       "type": 3,
       "api": "csp_YingShi",
       "searchable": 1,
