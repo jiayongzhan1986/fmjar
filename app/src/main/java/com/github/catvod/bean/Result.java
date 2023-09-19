@@ -1,6 +1,7 @@
 package com.github.catvod.bean;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
@@ -23,8 +24,12 @@ public class Result {
     private LinkedHashMap<String, List<Filter>> filters;
     @SerializedName("header")
     private String header;
+    @SerializedName("format")
+    private String format;
+    @SerializedName("danmaku")
+    private String danmaku;
     @SerializedName("url")
-    private String url;
+    private Object url;
     @SerializedName("subs")
     private List<Sub> subs;
     @SerializedName("parse")
@@ -32,13 +37,13 @@ public class Result {
     @SerializedName("jx")
     private int jx;
     @SerializedName("page")
-    private int page;
+    private Integer page;
     @SerializedName("pagecount")
-    private int pagecount;
+    private Integer pagecount;
     @SerializedName("limit")
-    private int limit;
+    private Integer limit;
     @SerializedName("total")
-    private int total;
+    private Integer total;
 
     public static Result objectFrom(String str) {
         return new Gson().fromJson(str, Result.class);
@@ -49,6 +54,10 @@ public class Result {
     }
 
     public static String string(List<Class> classes, List<Vod> list, JSONObject filters) {
+        return Result.get().classes(classes).vod(list).filters(filters).string();
+    }
+
+    public static String string(List<Class> classes, List<Vod> list, JsonElement filters) {
         return Result.get().classes(classes).vod(list).filters(filters).string();
     }
 
@@ -103,6 +112,13 @@ public class Result {
         return this;
     }
 
+    public Result filters(JsonElement element) {
+        if (element == null) return this;
+        Type listType = new TypeToken<LinkedHashMap<String, List<Filter>>>() {}.getType();
+        this.filters = new Gson().fromJson(element.toString(), listType);
+        return this;
+    }
+
     public Result header(Map<String, String> header) {
         if (header.isEmpty()) return this;
         this.header = new Gson().toJson(header);
@@ -129,8 +145,43 @@ public class Result {
         return this;
     }
 
+    public Result url(List<String> url) {
+        this.url = url;
+        return this;
+    }
+
+    public Result danmaku(String danmaku) {
+        this.danmaku = danmaku;
+        return this;
+    }
+
+    public Result format(String format) {
+        this.format = format;
+        return this;
+    }
+
     public Result subs(List<Sub> subs) {
         this.subs = subs;
+        return this;
+    }
+
+    public Result dash() {
+        this.format = "application/dash+xml";
+        return this;
+    }
+
+    public Result m3u8() {
+        this.format = "application/x-mpegURL";
+        return this;
+    }
+
+    public Result rtsp() {
+        this.format = "application/x-rtsp";
+        return this;
+    }
+
+    public Result octet() {
+        this.format = "application/octet-stream";
         return this;
     }
 

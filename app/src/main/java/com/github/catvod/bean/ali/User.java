@@ -2,7 +2,7 @@ package com.github.catvod.bean.ali;
 
 import android.text.TextUtils;
 
-import com.github.catvod.ali.API;
+import com.github.catvod.api.AliYun;
 import com.github.catvod.utils.FileUtil;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
@@ -53,6 +53,10 @@ public class User {
         return getTokenType() + " " + getAccessToken();
     }
 
+    public boolean isAuthed() {
+        return getTokenType().length() > 0 && getAccessToken().length() > 0;
+    }
+
     public User clean() {
         this.refreshToken = "";
         this.accessToken = "";
@@ -60,7 +64,7 @@ public class User {
     }
 
     public User save() {
-        FileUtil.write(API.get().getUserCache(), toString());
+        FileUtil.write(AliYun.get().getUserCache(), toString());
         return this;
     }
 

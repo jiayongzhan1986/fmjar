@@ -1,7 +1,5 @@
 package com.github.catvod.spider;
 
-import android.content.Context;
-
 import com.github.catvod.bean.Result;
 import com.github.catvod.bean.Vod;
 import com.github.catvod.net.OkHttp;
@@ -34,11 +32,6 @@ public class PanSou extends Ali {
     }
 
     @Override
-    public void init(Context context, String extend) {
-        super.init(context, extend);
-    }
-
-    @Override
     public String detailContent(List<String> ids) throws Exception {
         if (pattern.matcher(ids.get(0)).find()) return super.detailContent(ids);
         String url = siteUrl + ids.get(0).replace("/s/", "/cv/");
@@ -49,25 +42,27 @@ public class PanSou extends Ali {
     }
 
     @Override
-    public String searchContent(String key, boolean quick) {
-        Map<String, String> types = new HashMap<>();
-        types.put("7", "資料夾");
-        types.put("1", "影片");
+    public String searchContent(String key, boolean quick) throws Exception {
+        return searchContent(key, "1");
+    }
+
+    @Override
+    public String searchContent(String key, boolean quick, String pg) throws Exception {
+        return searchContent(key, pg);
+    }
+
+    private String searchContent(String key, String pg) {
+        String url = siteUrl + "/search?k=" + URLEncoder.encode(key) + "&page=" + pg + "&s=0&t=-1";
+        Elements items = Jsoup.parse(OkHttp.string(url)).select("van-row > a");
         List<Vod> list = new ArrayList<>();
-        for (Map.Entry<String, String> entry : types.entrySet()) {
-            String typeId = entry.getKey();
-            String typeName = entry.getValue();
-            String url = siteUrl + "/search?k=" + URLEncoder.encode(key) + "&t=" + typeId;
-            Elements items = Jsoup.parse(OkHttp.string(url)).select("van-row > a");
-            for (Element item : items) {
-                String title = item.selectFirst("template").text().trim();
-                if (!title.contains(key)) continue;
-                Vod vod = new Vod();
-                vod.setVodId(item.attr("href"));
-                vod.setVodName("[" + typeName + "] " + title);
-                vod.setVodPic("https://inews.gtimg.com/newsapp_bt/0/13263837859/1000");
-                list.add(vod);
-            }
+        for (Element item : items) {
+            String title = item.selectFirst("template").text().trim();
+            if (!title.contains(key)) continue;
+            Vod vod = new Vod();
+            vod.setVodId(item.attr("href"));
+            vod.setVodPic("https://inews.gtimg.com/newsapp_bt/0/13263837859/1000");
+            vod.setVodName(title);
+            list.add(vod);
         }
         return Result.string(list);
     }

@@ -3,6 +3,7 @@
 -dontwarn org.slf4j.impl.StaticLoggerBinder
 
 # Spider
+-keep class com.github.catvod.js.* { *; }
 -keep class com.github.catvod.crawler.* { *; }
 -keep class com.github.catvod.spider.* { public <methods>; }
 -keep class com.github.catvod.parser.* { public <methods>; }
@@ -20,19 +21,24 @@
 -keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
-# Cronet
--keep class org.chromium.net.** { *; }
--keep class com.google.net.cronet.** { *; }
-
 # OkHttp
 -dontwarn okhttp3.**
 -keep class okio.** { *; }
 -keep class okhttp3.** { *; }
 
+# Cronet
+-keep class org.chromium.net.** { *; }
+-keep class com.google.net.cronet.** { *; }
+
 # Sardine
 -keep class com.thegrizzlylabs.sardineandroid.** { *; }
 
+# Smbj
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+
 # Zxing
+-keep class com.google.zxing.** { *; }
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);

@@ -10,28 +10,35 @@ import android.view.ViewGroup;
 import android.webkit.ValueCallback;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import com.github.catvod.spider.Init;
+
+import org.mozilla.universalchardet.UniversalDetector;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Utils {
 
-    public static final String CHROME = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36";
-    public static final List<String> MEDIA = Arrays.asList("mp4", "mkv", "wmv", "flv", "avi", "mp3", "aac", "flac", "m4a");
-    public static final Pattern RULE = Pattern.compile(
-            "http((?!http).){12,}?\\.(m3u8|mp4|flv|avi|mkv|rm|wmv|mpg|m4a|mp3)\\?.*|" +
-                    "http((?!http).){12,}\\.(m3u8|mp4|flv|avi|mkv|rm|wmv|mpg|m4a|mp3)|" +
-                    "http((?!http).)*?video/tos*"
-    );
+    public static final String CHROME = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36";
+    public static final String ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
+    public static final List<String> MEDIA = Arrays.asList("mp4", "mkv", "wmv", "flv", "avi", "mp3", "aac", "flac", "m4a", "ape", "ogg");
+    public static final Pattern RULE = Pattern.compile("http((?!http).){12,}?\\.(m3u8|mp4|flv|avi|mkv|rm|wmv|mpg|m4a|mp3)\\?.*|" + "http((?!http).){12,}\\.(m3u8|mp4|flv|avi|mkv|rm|wmv|mpg|m4a|mp3)|" + "http((?!http).)*?video/tos*");
 
     public static boolean isVip(String url) {
         List<String> hosts = Arrays.asList("iqiyi.com", "v.qq.com", "youku.com", "le.com", "tudou.com", "mgtv.com", "sohu.com", "acfun.cn", "bilibili.com", "baofeng.com", "pptv.com");
+        for (String host : hosts) if (url.contains(host)) return true;
+        return false;
+    }
+
+    public static boolean isBlackVodUrl(String url) {
+        List<String> hosts = Arrays.asList("973973.xyz", ".fit:");
         for (String host : hosts) if (url.contains(host)) return true;
         return false;
     }
@@ -48,8 +55,19 @@ public class Utils {
         return hasCamera && hasPhone && hasBT;
     }
 
+    public static byte[] toUtf8(byte[] bytes) {
+        try {
+            UniversalDetector detector = new UniversalDetector(null);
+            detector.handleData(bytes, 0, bytes.length);
+            detector.dataEnd();
+            return new String(bytes, detector.getDetectedCharset()).getBytes("UTF-8");
+        } catch (Exception e) {
+            return bytes;
+        }
+    }
+
     public static boolean isSub(String ext) {
-        return ext.equals("srt") || ext.equals("ass") || ext.equals("ssa");
+        return ext.equals("srt") || ext.equals("ass") || ext.equals("ssa") || ext.equals("vtt");
     }
 
     public static String getExt(String name) {
@@ -146,10 +164,23 @@ public class Utils {
         else webView.loadUrl(script);
     }
 
+    public static void notify(String msg) {
+        Init.run(() -> Toast.makeText(Init.context(), msg, Toast.LENGTH_LONG).show());
+    }
+
     public static void addView(View view, ViewGroup.LayoutParams params) {
         try {
             ViewGroup group = Init.getActivity().getWindow().getDecorView().findViewById(android.R.id.content);
             group.addView(view, params);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void removeView(View view) {
+        try {
+            ViewGroup group = Init.getActivity().getWindow().getDecorView().findViewById(android.R.id.content);
+            group.removeView(view);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -165,5 +196,18 @@ public class Utils {
             webView.setWebViewClient(client);
             webView.loadUrl(url);
         });
+    }
+
+    public static String getDigit(String text) {
+        try {
+            String newText = text;
+            Matcher matcher = Pattern.compile(".*(1080|720|2160|4k|4K).*").matcher(text);
+            if (matcher.find()) newText = matcher.group(1) + " " + text;
+            matcher = Pattern.compile("^([0-9]+)").matcher(text);
+            if (matcher.find()) newText = matcher.group(1) + " " + newText;
+            return newText.replaceAll("\\D+", "") + " " + newText.replaceAll("\\d+", "");
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

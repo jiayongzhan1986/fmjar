@@ -1,7 +1,5 @@
 package com.github.catvod.spider;
 
-import android.content.Context;
-
 import com.github.catvod.bean.Result;
 import com.github.catvod.bean.Vod;
 import com.github.catvod.bean.upyun.Data;
@@ -20,13 +18,17 @@ import javax.crypto.spec.SecretKeySpec;
 public class UpYun extends Ali {
 
     @Override
-    public void init(Context context, String extend) {
-        super.init(context, extend);
+    public String searchContent(String key, boolean quick) throws Exception {
+        return searchContent(key, "1");
     }
 
     @Override
-    public String searchContent(String key, boolean quick) throws Exception {
-        String res = decode(OkHttp.string("https://zyb.upyunso.com/v15/search?keyword=" + URLEncoder.encode(key) + "&page=1&s_type=2"));
+    public String searchContent(String key, boolean quick, String pg) throws Exception {
+        return searchContent(key, pg);
+    }
+
+    private String searchContent(String key, String pg) throws Exception {
+        String res = decode(OkHttp.string("https://zyb.upyunso.com/v15/search?keyword=" + URLEncoder.encode(key) + "&page=" + pg + "&s_type=2"));
         List<Vod> list = new ArrayList<>();
         for (Item item : Data.objectFrom(res).getResult().getItems()) {
             String url = decode(item.getPageUrl());

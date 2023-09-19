@@ -12,6 +12,7 @@ import com.github.catvod.bean.alist.Drive;
 import com.github.catvod.bean.alist.Item;
 import com.github.catvod.bean.alist.Sorter;
 import com.github.catvod.crawler.Spider;
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Utils;
 
@@ -24,7 +25,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class AList extends Spider {
 
@@ -51,6 +56,17 @@ public class AList extends Spider {
         return drives.get(drives.indexOf(new Drive(name))).check();
     }
 
+    private String post(Drive drive, String url, String param) {
+        return post(drive, url, param, true);
+    }
+
+    private String post(Drive drive, String url, String param, boolean retry) {
+        String response = OkHttp.postJson(url, param, drive.getHeader()).getBody();
+        SpiderDebug.log(response);
+        if (retry && response.contains("Guest user is disabled") && login(drive)) return post(drive, url, param, false);
+        return response;
+    }
+
     @Override
     public void init(Context context, String extend) {
         try {
@@ -65,7 +81,7 @@ public class AList extends Spider {
         fetchRule();
         List<Class> classes = new ArrayList<>();
         LinkedHashMap<String, List<Filter>> filters = new LinkedHashMap<>();
-        for (Drive drive : drives) classes.add(drive.toType());
+        for (Drive drive : drives) if (!drive.hidden()) classes.add(drive.toType());
         for (Class item : classes) filters.put(item.getTypeId(), getFilter());
         return Result.string(classes, filters);
     }
@@ -78,6 +94,7 @@ public class AList extends Spider {
         List<Item> folders = new ArrayList<>();
         List<Item> files = new ArrayList<>();
         List<Vod> list = new ArrayList<>();
+
         for (Item item : getList(tid, true)) {
             if (item.isFolder()) folders.add(item);
             else files.add(item);
@@ -86,6 +103,7 @@ public class AList extends Spider {
             Sorter.sort(type, order, folders);
             Sorter.sort(type, order, files);
         }
+
         for (Item item : folders) list.add(item.getVod(tid, vodPic));
         for (Item item : files) list.add(item.getVod(tid, vodPic));
         return Result.get().vod(list).page().string();
@@ -101,17 +119,13 @@ public class AList extends Spider {
         Drive drive = getDrive(key);
         List<Item> parents = getList(path, false);
         Sorter.sort("name", "asc", parents);
-        List<String> playUrls = new ArrayList<>();
-        for (Item item : parents) {
-            if (item.isMedia(drive.isNew())) {
-                playUrls.add(item.getName() + "$" + item.getVodId(path) + findSubs(path, parents));
-            }
-        }
         Vod vod = new Vod();
+        vod.setVodPlayFrom(key);
         vod.setVodId(id);
         vod.setVodName(name);
         vod.setVodPic(vodPic);
-        vod.setVodPlayFrom(key);
+        List<String> playUrls = new ArrayList<>();
+        for (Item item : parents) if (item.isMedia(drive.isNew())) playUrls.add(item.getName() + "$" + item.getVodId(path) + findSubs(path, parents));
         vod.setVodPlayUrl(TextUtils.join("#", playUrls));
         return Result.string(vod);
     }
@@ -120,9 +134,10 @@ public class AList extends Spider {
     public String searchContent(String keyword, boolean quick) throws Exception {
         fetchRule();
         List<Vod> list = new ArrayList<>();
-        CountDownLatch cd = new CountDownLatch(drives.size());
-        for (Drive drive : drives) new Thread(() -> search(cd, list, drive.check(), keyword)).start();
-        cd.await();
+        List<Job> jobs = new ArrayList<>();
+        ExecutorService executor = Executors.newCachedThreadPool();
+        for (Drive drive : drives) if (drive.search()) jobs.add(new Job(drive.check(), keyword));
+        for (Future<List<Vod>> future : executor.invokeAll(jobs, 15, TimeUnit.SECONDS)) list.addAll(future.get());
         return Result.string(list);
     }
 
@@ -132,15 +147,30 @@ public class AList extends Spider {
         return Result.get().url(getDetail(ids[0]).getUrl()).subs(getSub(ids)).string();
     }
 
+    private boolean login(Drive drive) {
+        try {
+            JSONObject params = new JSONObject();
+            params.put("username", drive.getLogin().getUsername());
+            params.put("password", drive.getLogin().getPassword());
+            String response = OkHttp.postJson(drive.loginApi(), params.toString()).getBody();
+            drive.setToken(new JSONObject(response).getJSONObject("data").getString("token"));
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     private Item getDetail(String id) {
         try {
             String key = id.contains("/") ? id.substring(0, id.indexOf("/")) : id;
             String path = id.contains("/") ? id.substring(id.indexOf("/")) : "";
             Drive drive = getDrive(key);
+            path = path.startsWith(drive.getPath()) ? path : drive.getPath() + path;
             JSONObject params = new JSONObject();
-            params.put("password", drive.getPassword());
-            params.put("path", path.startsWith(drive.getPath()) ? path : drive.getPath() + path);
-            String response = OkHttp.postJson(drive.getApi(), params.toString()).getBody();
+            params.put("path", path);
+            params.put("password", drive.findPass(path));
+            String response = post(drive, drive.getApi(), params.toString());
             return Item.objectFrom(getDetailJson(drive.isNew(), response));
         } catch (Exception e) {
             return new Item();
@@ -152,27 +182,17 @@ public class AList extends Spider {
             String key = id.contains("/") ? id.substring(0, id.indexOf("/")) : id;
             String path = id.contains("/") ? id.substring(id.indexOf("/")) : "";
             Drive drive = getDrive(key);
+            path = path.startsWith(drive.getPath()) ? path : drive.getPath() + path;
             JSONObject params = new JSONObject();
-            params.put("password", drive.getPassword());
-            params.put("path", path.startsWith(drive.getPath()) ? path : drive.getPath() + path);
-            String response = OkHttp.postJson(drive.listApi(), params.toString()).getBody();
+            params.put("path", path);
+            params.put("password", drive.findPass(path));
+            String response = post(drive, drive.listApi(), params.toString());
             List<Item> items = Item.arrayFrom(getListJson(drive.isNew(), response));
             Iterator<Item> iterator = items.iterator();
             if (filter) while (iterator.hasNext()) if (iterator.next().ignore(drive.isNew())) iterator.remove();
             return items;
         } catch (Exception e) {
             return Collections.emptyList();
-        }
-    }
-
-    private void search(CountDownLatch cd, List<Vod> list, Drive drive, String keyword) {
-        try {
-            String response = OkHttp.postJson(drive.searchApi(), drive.params(keyword)).getBody();
-            List<Item> items = Item.arrayFrom(getSearchJson(drive.isNew(), response));
-            for (Item item : items) if (!item.ignore(drive.isNew())) list.add(item.getVod(drive, vodPic));
-        } catch (Exception ignored) {
-        } finally {
-            cd.countDown();
         }
     }
 
@@ -217,5 +237,25 @@ public class AList extends Spider {
             sub.add(Sub.create().name(name).ext(ext).url(url));
         }
         return sub;
+    }
+
+    class Job implements Callable<List<Vod>> {
+
+        private final Drive drive;
+        private final String keyword;
+
+        public Job(Drive drive, String keyword) {
+            this.drive = drive;
+            this.keyword = keyword;
+        }
+
+        @Override
+        public List<Vod> call() throws Exception {
+            List<Vod> list = new ArrayList<>();
+            String response = post(drive, drive.searchApi(), drive.params(keyword));
+            List<Item> items = Item.arrayFrom(getSearchJson(drive.isNew(), response));
+            for (Item item : items) if (!item.ignore(drive.isNew())) list.add(item.getVod(drive, vodPic));
+            return list;
+        }
     }
 }

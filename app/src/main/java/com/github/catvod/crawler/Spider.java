@@ -7,10 +7,10 @@ import java.util.List;
 
 public abstract class Spider {
 
-    public void init(Context context) {
+    public void init(Context context) throws Exception {
     }
 
-    public void init(Context context, String extend) {
+    public void init(Context context, String extend) throws Exception {
         init(context);
     }
 
@@ -34,15 +34,22 @@ public abstract class Spider {
         return "";
     }
 
+    public String searchContent(String key, boolean quick, String pg) throws Exception {
+        return "";
+    }
+
     public String playerContent(String flag, String id, List<String> vipFlags) throws Exception {
         return "";
     }
 
-    public boolean manualVideoCheck() {
+    public boolean manualVideoCheck() throws Exception {
         return false;
     }
 
-    public boolean isVideoFormat(String url) {
+    public boolean isVideoFormat(String url) throws Exception {
         return false;
+    }
+
+    public void destroy() {
     }
 }

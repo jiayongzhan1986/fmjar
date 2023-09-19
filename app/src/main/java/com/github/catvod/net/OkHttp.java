@@ -3,6 +3,7 @@ package com.github.catvod.net;
 import com.github.catvod.crawler.Spider;
 
 import java.io.IOException;
+import java.net.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +37,7 @@ public class OkHttp {
     }
 
     public static OkHttpClient.Builder getBuilder() {
-        return new OkHttpClient.Builder().dns(safeDns()).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).connectTimeout(30, TimeUnit.SECONDS).hostnameVerifier(SSLSocketFactoryCompat.hostnameVerifier).sslSocketFactory(new SSLSocketFactoryCompat(), SSLSocketFactoryCompat.trustAllCert);
+        return new OkHttpClient.Builder().dns(safeDns()).proxy(proxy()).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).connectTimeout(30, TimeUnit.SECONDS).hostnameVerifier(SSLCompat.VERIFIER).sslSocketFactory(new SSLCompat(), SSLCompat.TM);
     }
 
     public static OkHttpClient client() {
@@ -53,6 +54,18 @@ public class OkHttp {
         } catch (Exception e) {
             return Dns.SYSTEM;
         }
+    }
+
+    public static Proxy proxy() {
+        try {
+            return (Proxy) Spider.class.getMethod("proxy").invoke(null);
+        } catch (Exception e) {
+            return Proxy.NO_PROXY;
+        }
+    }
+
+    public static Response newCall(String url) throws IOException {
+        return client().newCall(new Request.Builder().url(url).build()).execute();
     }
 
     public static Response newCall(String url, Map<String, String> header) throws IOException {
@@ -77,6 +90,10 @@ public class OkHttp {
 
     public static String string(String url, Map<String, String> header, Map<String, List<String>> respHeader) {
         return string(url, null, header, respHeader);
+    }
+
+    public static String get(String url, Map<String, String> params, Map<String, String> header) {
+        return string(url, params, header, null);
     }
 
     public static String string(String url, Map<String, String> params, Map<String, String> header, Map<String, List<String>> respHeader) {

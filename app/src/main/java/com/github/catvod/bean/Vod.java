@@ -1,5 +1,6 @@
 package com.github.catvod.bean;
 
+import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
 public class Vod {
@@ -30,6 +31,13 @@ public class Vod {
     private String vodPlayUrl;
     @SerializedName("vod_tag")
     private String vodTag;
+    @SerializedName("style")
+    private Style style;
+
+    public static Vod objectFrom(String str) {
+        Vod item = new Gson().fromJson(str, Vod.class);
+        return item == null ? new Vod() : item;
+    }
 
     public Vod() {
     }
@@ -45,6 +53,14 @@ public class Vod {
         setVodName(vodName);
         setVodPic(vodPic);
         setVodRemarks(vodRemarks);
+    }
+
+    public Vod(String vodId, String vodName, String vodPic, String vodRemarks, Style style) {
+        setVodId(vodId);
+        setVodName(vodName);
+        setVodPic(vodPic);
+        setVodRemarks(vodRemarks);
+        setStyle(style);
     }
 
     public Vod(String vodId, String vodName, String vodPic, String vodRemarks, boolean folder) {
@@ -107,7 +123,52 @@ public class Vod {
         this.vodPlayUrl = vodPlayUrl;
     }
 
+    public String getVodPlayUrl() {
+        return vodPlayUrl;
+    }
+
     public void setVodTag(String vodTag) {
         this.vodTag = vodTag;
+    }
+
+    public void setStyle(Style style) {
+        this.style = style;
+    }
+
+    public static class Style {
+
+        @SerializedName("type")
+        private String type;
+        @SerializedName("ratio")
+        private Float ratio;
+
+        public static Style rect() {
+            return rect(0.75f);
+        }
+
+        public static Style rect(float ratio) {
+            return new Style("rect", ratio);
+        }
+
+        public static Style oval() {
+            return new Style("oval", 1.0f);
+        }
+
+        public static Style full() {
+            return new Style("full");
+        }
+
+        public static Style list() {
+            return new Style("list");
+        }
+
+        public Style(String type) {
+            this.type = type;
+        }
+
+        public Style(String type, Float ratio) {
+            this.type = type;
+            this.ratio = ratio;
+        }
     }
 }
